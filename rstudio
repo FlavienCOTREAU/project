@@ -1,6 +1,6 @@
-#When I was a student I designed for Fifa Electronic Arts players a tool in R language which allows them to access to informations 
-#concerning recruitment of players with strong potential (Fifa 20).
-#You can copy-paste this code to rStudio to load it, or directly access to the app through this link: https://flaviencotreau.shinyapps.io/fifa/
+#When I was a student I designed for Fifa Electronic Arts players a tool in R language which allows them to access 
+#to informations concerning recruitment of players with strong potential (Fifa 20).
+#Below is the the code created, you can directly access to the app through this link: https://flaviencotreau.shinyapps.io/fifa/
 
 library(tidyverse)                                    
 library(plotly)
