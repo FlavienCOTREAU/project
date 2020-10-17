@@ -1,0 +1,697 @@
+#When I was a student I designed for Fifa Electronic Arts players a tool in R language which allows them to access to informations 
+#concerning recruitment of players with strong potential (Fifa 20).
+#You can copy-paste this code to rStudio to load it, or directly access to the app through this link: https://flaviencotreau.shinyapps.io/fifa/
+
+library(tidyverse)                                    
+library(plotly)
+library(gganimate)
+library(ggrepel)
+library(cowplot)
+library(gifski)
+library(png)
+library(shiny)
+library(shinydashboard)
+library(DT)
+library(rsconnect)
+library(viridis)
+library(RColorBrewer)
+library(fmsb)
+
+load("fifa.RData")
+
+ui <- dashboardPage( title="FIFA 20", skin = "green",
+                     
+                     dashboardHeader( 
+                       tags$li(class = "dropdown", 
+                               tags$a(href="https://www.linkedin.com/in/flaviencotreau/", 
+                                      target="_blank", icon("linkedin", "fa-2x", lib = "font-awesome")  # fa-3x means 3 times bigger 
+                               )),
+                       tags$li(class = "dropdown", 
+                               tags$a(href="http://www.fpf.org.pe/", 
+                                      target="_blank", icon("futbol", "fa-2x", lib = "font-awesome")  # fa-3x means 3 times bigger 
+                               ))
+                     ),   
+                     
+                     dashboardSidebar(
+                       sidebarMenu(
+                         menuItem("Welcome", tabName = "welcome", icon = icon("home", lib = "font-awesome")),
+                         menuItem("Research center", tabName = "table", icon = icon("search", lib = "font-awesome")),
+                         menuItem("Overview", tabName = "overview", icon = icon("layer-group", lib = "font-awesome")),
+                         menuItem("Teams", tabName = "teams", icon = icon("users", lib = "font-awesome")),
+                         menuItem("Players", tabName = "players", icon= icon("user", lib = "font-awesome"))
+                         
+                       )
+                     ),            
+                     
+                     dashboardBody(
+                       tabItems(
+                         tabItem(tabName ="welcome",
+                                 fluidRow(
+                                   column(7,plotOutput("peru")),
+                                   column(5,h4(style="text-align: justify;",
+                                              "Welcome to the Fifa 20 Dashboard for Fifa Electronic Arts fans !
+                                               When I was young I always wondered in which players should I invest in the  
+                                               most valuable players regarding their potential and their particularity, 
+                                               so I designed a tool!"), 
+                                          h4(style="text-align: justify;",
+                                             "You can access to various informations about teams and players 
+                                               from the 5 big championships (Premier League, Liga BBVA, Ligue 1, Serie A, 
+                                               Bundesliga). Various visuals are provided to enhance your decision making in 
+                                               recruiting players with high potential and building the most powerful team."), 
+                                          h4(style="text-align: justify;",
+                                             "Sponsored by Peruvian Football Federation."), 
+                                            h6("Disclaimer: Any playerwhich is substitute or in the reserve team has by 
+                                                  default no position specified"),
+                                          plotOutput("fifa20_logo"))
+                                 )
+                         ),
+                         
+                         tabItem(tabName ="table",
+                                 fluidRow(
+                                   column(2,sliderInput("age", h4("Age"),               
+                                                        min = 17, max = 45,
+                                                        value = c(17,45), step = 1, sep = "")),
+                                   
+                                   column(2,sliderInput("overall", h4("Overall"),              
+                                                        min = 0, max = 100,                      
+                                                        value = c(0, 100), step = 1, sep = "")),
+                                   
+                                   column(2,sliderInput("potential", h4("Potential"),                
+                                                        min = 0, max = 100,
+                                                        value = c(0,100), step = 1, sep = "")),
+                                   
+                                   column(2,sliderInput("potential_increase", h4("Increase potential"),                
+                                                        min = 0, max = 25,
+                                                        value = c(0,25), step = 1, sep = "")),
+                                   
+                                   column(2,sliderInput("value", h4("Value"),                
+                                                        min = 0, max = 105500000,
+                                                        value = c(0,105500000), step = 1000, sep = "")),
+                                   
+                                   column(2,sliderInput("wage", h4("Wage"),                
+                                                        min = 0, max = 565000,
+                                                        value = c(0,565000), step = 100, sep = "")),
+                                   
+                                   column(2,sliderInput("pace", h4("Pace"),               
+                                                        min = 0, max = 100,
+                                                        value = c(0,100), step = 1, sep = "")),
+                                   
+                                   column(2,sliderInput("dribbling", h4("Dribbling"),              
+                                                        min = 0, max = 100,                      
+                                                        value = c(0, 100), step = 1, sep = "")),
+                                   
+                                   column(2,sliderInput("shooting", h4("Shooting"),                
+                                                        min = 0, max = 100,
+                                                        value = c(0,100), step = 1, sep = "")),
+                                   
+                                   column(2,sliderInput("passing", h4("Passing"),                
+                                                        min = 0, max = 100,
+                                                        value = c(0,100), step = 1, sep = "")),
+                                   
+                                   column(2,sliderInput("physic", h4("Physic"),                
+                                                        min = 0, max = 100,
+                                                        value = c(0,100), step = 1, sep = "")),
+                                   
+                                   column(2,sliderInput("defending", h4("Defending"),                
+                                                        min = 0, max = 100,
+                                                        value = c(0,100), step = 1, sep = ""))
+                                   
+                                   
+                                 ),
+                                 
+                                 DT::dataTableOutput("table"),
+                                 fluidRow(
+                                   column(4,checkboxGroupInput("position", h4("Position"),              
+                                            choices = c("Goalkeeper","Back","Middle","Forward","Not specified"), 
+                                            selected = c("Goalkeeper","Back","Middle","Forward","Not specified"))),
+                                   column(8,h4(style="text-align: justify;","This is the Research Center! Here you can find the player of your dream 
+                                               playing with all the filter tools at your convenience. As a reminder, 
+                                               any player which is substitute or in the reserve team has by default no 
+                                               position specified"))
+                                   
+                                   
+                                 )
+                                 
+                         ),
+                         
+                         tabItem(tabName ="overview",
+                                 tabBox( title = "Overview", height = "920px", width = "400px",
+                                         tabPanel("Players with potential", 
+                                                  fluidRow(
+                                                    column(6,plotlyOutput("potential_players_limited_value")),
+                                                    column(6,plotOutput("potential_championship"))
+                                                  ),
+                                                  fluidRow(plotlyOutput("potential_players_value")
+                                                           
+                                                  )
+                                         ),
+                                         tabPanel("Financial data",
+                                                  fluidRow(
+                                                    column(6,plotlyOutput("value_championship")),
+                                                    column(6,plotlyOutput("wage_championship"))
+                                                  ),
+                                                  plotlyOutput("finance_players")
+                                         ),
+                                         tabPanel("Skills classification", 
+                                                  fluidRow(
+                                                    column(4,plotOutput("dribbling_team")),
+                                                    column(4,plotOutput("pace_team")),
+                                                    column(4,plotOutput("shooting_team"))
+                                                  ),
+                                                  fluidRow(
+                                                    column(4,plotOutput("passing_team")),
+                                                    column(4,plotOutput("defending_team")),
+                                                    column(4,plotOutput("physic_team"))
+                                                  )                              
+                                                  
+                                                  
+                                                  
+                                         )
+                                 )                
+                         ),
+                         
+                         tabItem(tabName ="teams",
+                                 tabBox( title = "Teams", height = "920px", width = "400px",
+                                         tabPanel("Overview",
+                                                  fluidRow(
+                                                    column(6, radioButtons("champ", h4("Championship"),        
+                                                                           choices = fifa %>% pull(championship) %>% unique(),
+                                                                           selected = c("Premier League")
+                                                    )
+                                                    ),
+                                                    column(6,uiOutput("select")
+                                                    )
+                                                  ),
+                                                  fluidRow(
+                                                    valueBoxOutput("box1"),
+                                                    valueBoxOutput("box2"),
+                                                    valueBoxOutput("box3")
+                                                  ),
+                                         ),
+                                         tabPanel("Finance",
+                                                  fluidRow(
+                                                    column(6,plotOutput("team_value")),
+                                                    column(6,plotOutput("wage_value"))
+                                                  ),
+                                                  fluidRow(
+                                                    column(6,plotOutput("team_wage")),
+                                                    column(6,plotOutput("team_val_overall"))
+                                                  ) 
+                                         ),
+                                         tabPanel("Potential",
+                                                  fluidRow(
+                                                    plotlyOutput("team_overall_potential")
+                                                  )
+                                         ),
+                                         tabPanel("Skills",
+                                                  fluidRow(
+                                                    column(6,plotOutput("shooting_pace")),
+                                                    column(6,plotOutput("dribbling_passing"))
+                                                  ),
+                                                  fluidRow(
+                                                    column(6,plotOutput("physic_defending"))
+                                                    
+                                                  )
+                                         )
+                                 )
+                         ),
+                         
+                         tabItem(tabName ="players",
+                                 tabBox( title = "Players", height = "920px", width = "400px",
+                                         tabPanel(title = "Pick a player", 
+                                                  DT::dataTableOutput("table_player"),
+                                                  fluidRow( column(4,radioButtons("championship", h4("Championship"),              
+                                                                                  choices = fifa %>% pull(championship) %>% unique(),
+                                                                                  selected = c("Premier League"))),
+                                                            column(4,uiOutput("player1")),
+                                                            column(4,uiOutput("player2"))
+                                                  )
+                                         ),
+                                         tabPanel(title ="Player insights",
+                                                  valueBoxOutput("boxname"),
+                                                  valueBoxOutput("boxoverall"),
+                                                  valueBoxOutput("boxvalue"),
+                                                  valueBoxOutput("boxposition"),
+                                                  valueBoxOutput("boxpotential_increase"),
+                                                  valueBoxOutput("boxwage"),
+                                                  valueBoxOutput("boxheight"),
+                                                  valueBoxOutput("boxage"),
+                                                  valueBoxOutput("boxcontract"),
+                                                  plotOutput("radarchart")
+                                         )
+                                 )
+                         )
+                       )  
+                     )
+)
+
+
+server <- function(input, output){      
+  
+  output$fifa20_logo <- renderImage({
+    list(src = "fifa20_logo.png",width = 400)
+  }, deleteFile = FALSE)
+  
+  output$peru <- renderImage({
+    list(src = "peru.png",width = 600,
+         height = 420)
+  }, deleteFile = FALSE)
+  
+  
+  data <- reactive(
+    fifa %>% 
+      filter(overall >= input$overall[1],                   
+             overall <= input$overall[2],
+             age >= input$age[1],
+             age <= input$age[2],
+             value >= input$value[1],
+             value <= input$value[2],
+             wage >= input$wage[1],
+             wage <= input$wage[2],
+             potential >= input$potential[1],
+             potential <= input$potential[2],
+             potential_increase >= input$potential_increase[1],
+             potential_increase <= input$potential_increase[2],
+             pace>= input$pace[1],
+             pace <= input$pace[2],
+             shooting >= input$shooting[1],
+             shooting <= input$shooting[2],
+             dribbling >= input$dribbling[1],
+             dribbling <= input$dribbling[2],
+             physic >= input$physic[1],
+             physic <= input$physic[2],
+             passing >= input$passing[1],
+             passing <= input$passing[2],
+             defending >= input$defending[1],
+             defending <= input$defending[2],
+             position %in% input$position
+      )
+  )
+  
+  
+  output$table <- DT::renderDataTable({data()}, 
+                                      options = list(   
+                                        lengthMenu = list(c(5, 10, 20), c('5 rows', '10 rows', '20 rows')),   
+                                        pageLength = 5  ))   
+  
+  
+  output$potential_players_value <- renderPlotly({
+    g <- fifa %>%
+      filter(potential_increase != 0, age <26) %>%
+      ggplot(aes(x = value, y=potential_increase, label = name)) + geom_point(aes(color = overall)) +
+      scale_color_viridis(option = "D") +
+      labs(title = "Repartition of players per potential of increase",
+           x = "Player value",
+           y = "Potential of increase")
+    ggplotly(g)
+  })
+  
+  output$potential_players_limited_value <- renderPlotly({
+    g <- fifa %>%
+      filter(potential_increase != 0, age <26, value < 10000000) %>%
+      ggplot(aes(x = overall, y=potential_increase, label = name)) + geom_point(aes(color = value)) +
+      scale_color_viridis(option = "viridis") + 
+      labs(title = "Players with potential and value >10M€",
+           x = "Overall score",
+           y = "Potential of increase")
+    ggplotly(g)
+  })
+  
+  output$potential_championship <- renderPlot({
+    fifa %>%
+      filter(potential_increase > 4, age < 26 ) %>%
+      ggplot(aes(x = potential_increase , fill = championship)) + geom_bar() +
+      labs(title = "Repartition of players per potential of increase",
+           x = "Potential of increase",
+           y = "Count of players")
+  })
+  
+  output$value_championship <- renderPlotly({
+    g <- fifa %>%
+      group_by(championship, club) %>%
+      summarize(sum_value=sum(value)) %>%
+      arrange(sum_value) %>% 
+      ggplot(aes(reorder(championship, sum_value),y=sum_value, fill = championship, label = club)) + geom_col() +
+      labs(title = "Sum of players value per championship",
+           x = "Championships",
+           y = "Sum of club values") +
+      theme(axis.text.x = element_text(angle = 40))
+    ggplotly(g)
+  })
+  
+  output$wage_championship <- renderPlotly({
+    g <- fifa %>%
+      group_by(championship, club) %>%
+      summarize(sum_wage=sum(wage)) %>%
+      arrange(sum_wage) %>% 
+      ggplot(aes(reorder(championship, sum_wage),y=sum_wage, fill = championship, label = club)) + geom_col() +
+      labs(title = "Sum of players wage per championship",
+           x = "Championships",
+           y = "Sum of club wages") +
+      theme(axis.text.x = element_text(angle = 40))
+    ggplotly(g)
+  })
+  
+  output$finance_players <- renderPlotly({
+    g <- fifa %>%
+      ggplot(aes(x = value, y=wage,label = name, color = championship)) + geom_point(aes(color=championship)) +
+      labs(title = "Wage and Value per player",
+           x = "Value",
+           y = "Wage") 
+    ggplotly(g)
+  })
+  
+  output$dribbling_team <- renderPlot({
+    fifa %>%
+      filter(dribbling > 59) %>%
+      group_by(club) %>%
+      summarise(avg_dribbling=mean(dribbling)) %>%
+      arrange(desc(avg_dribbling)) %>%
+      slice(1:15) %>%
+      ggplot(aes(x = avg_dribbling, y=reorder(club,avg_dribbling), label = avg_dribbling)) + 
+      geom_col(fill = "#4275F0", alpha = 0.5)
+  })
+  
+  output$pace_team <- renderPlot({
+    fifa %>%
+      filter(pace > 59) %>%
+      group_by(club) %>%
+      summarise(avg_pace=mean(pace)) %>%
+      arrange(desc(avg_pace)) %>%
+      slice(1:15) %>%
+      ggplot(aes(x = avg_pace, y=reorder(club,avg_pace))) + geom_col(fill = "#4275F0", alpha = 0.5)
+  })
+  
+  output$shooting_team <- renderPlot({
+    fifa %>%
+      filter(shooting>59) %>%
+      group_by(club) %>%
+      summarise(avg_shooting=mean(shooting)) %>%
+      arrange(desc(avg_shooting)) %>%
+      slice(1:15) %>%
+      ggplot(aes(x = avg_shooting, y=reorder(club,avg_shooting))) + geom_col(fill = "#4275F0", alpha = 0.5)
+  })
+  
+  output$passing_team <- renderPlot({
+    fifa %>%
+      filter(passing >59) %>%
+      group_by(club) %>%
+      summarise(avg_passing=mean(passing)) %>%
+      arrange(desc(avg_passing)) %>%
+      slice(1:15) %>%
+      ggplot(aes(x = avg_passing, y=reorder(club,avg_passing))) + geom_col(fill = "#4275F0", alpha = 0.5)
+  })
+  
+  output$defending_team <- renderPlot({
+    fifa %>%
+      filter(defending > 59) %>%
+      group_by(club) %>%
+      summarise(avg_defending=mean(defending)) %>%
+      arrange(desc(avg_defending)) %>%
+      slice(1:15) %>%
+      ggplot(aes(x = avg_defending, y=reorder(club,avg_defending))) + geom_col(fill = "#4275F0", alpha = 0.5)
+  })
+  
+  output$physic_team <- renderPlot({
+    fifa %>%
+      filter(physic > 59) %>%
+      group_by(club) %>%
+      summarise(avg_physic=mean(physic)) %>%
+      arrange(desc(avg_physic)) %>%
+      slice(1:15) %>%
+      ggplot(aes(x = avg_physic, y=reorder(club,avg_physic))) + geom_col(fill = "#4275F0", alpha = 0.5)
+  })
+  
+  
+  choices_for_club_list <- reactive({
+    fifa %>% 
+      filter(championship == input$champ) %>% 
+      arrange(club) %>%
+      pull(club) %>%
+      unique() %>%
+      as.character()
+  }) 
+  
+  output$select <- renderUI(
+    selectInput("club", h4("Club"), 
+                choices = choices_for_club_list()
+    )
+  )
+  
+  data2 <- reactive({                      
+    fifa %>% 
+      filter(club %in% input$club)
+  })
+  
+  output$table2 <- DT::renderDataTable({data2()})
+  
+  output$box1 <- renderValueBox({
+    fifa <- data2()
+    valueBox(
+      value = sum(fifa$value), 
+      subtitle =  "Value",
+      icon = icon("coins", lib = "font-awesome"),
+      color = "green"
+    )
+  })
+  
+  output$box2 <- renderValueBox({
+    fifa <- data2()
+    valueBox(
+      value = sum(fifa$wage), 
+      subtitle = "Wage",
+      icon = icon("euro-sign", lib = "font-awesome"),
+      color = "green"
+    )
+  })
+  
+  output$box3 <- renderValueBox({
+    fifa <- data2()
+    valueBox(
+      value = sum(fifa$name!="Flavien Cotreau"),
+      subtitle =  "Players",
+      icon = icon("users", lib = "font-awesome"),
+      color = "green" 
+    )
+  })
+  
+  output$team_value <- renderPlot({
+    data2() %>%
+      slice(1:10) %>%
+      ggplot(aes(x= value,y= reorder (name,value))) + geom_col()+
+      labs(title = "Top 10 most valuable players",
+           x = "Value",
+           y = "Players") 
+  })
+  
+  output$team_wage <- renderPlot({
+    data2() %>%
+      slice(1:10) %>%
+      ggplot(aes(x= wage,y= reorder (name,wage))) + geom_col() +
+      labs(title = "Top 10 highest wages",
+           x = "Wage",
+           y = "Players") 
+  })
+  
+  output$team_val_overall <- renderPlot({
+    data2() %>%
+      ggplot(aes(overall,val_overall,color = age))  + geom_point() + 
+      geom_text_repel(aes(label = name),nudge_y = 0.8) + geom_smooth() +
+      labs(title = "Value of overall score (value/overall)",
+           x = "Overall",
+           y = "Value per overall point") 
+  })
+  
+  output$wage_value <- renderPlot({
+    data2() %>%
+      ggplot(aes(value,wage))  + geom_point() + geom_text_repel(aes(label = name),nudge_y = 0.8)+
+      labs(title = "Wage and Value per player",
+           x = "Value",
+           y = "Wage") 
+  })
+  
+  
+  output$team_overall_potential <- renderPlotly({
+    g <- data2() %>%
+      ggplot(aes(x = overall, y=potential_increase ,label = name)) + geom_point(aes(color=age)) + 
+      scale_color_viridis(option = "viridis") +
+      labs(title = "Potential players in team",
+           x = "Overall",
+           y = "Potential of increase") 
+    ggplotly(g)
+  })
+  
+  output$shooting_pace <- renderPlot({
+    data2() %>%
+      filter (shooting > 50, pace > 50) %>%
+      ggplot(aes(shooting,pace, color = overall))  + geom_point() + 
+      geom_text_repel(aes(label = name),nudge_y = 0.8) +scale_color_viridis(option = "viridis") +
+      labs(title = "Visualisation of pace and shooting skills",
+           x = "Shooting",
+           y = "Pace") 
+  })
+  
+  output$dribbling_passing <- renderPlot({
+    data2() %>%
+      filter(dribbling > 50, passing > 50) %>%
+      ggplot(aes(dribbling,passing, color = overall))  + geom_point() + 
+      geom_text_repel(aes(label = name),nudge_y = 0.8) + scale_color_viridis(option = "viridis")+
+      labs(title = "Visualisation of dribbling and passing skills",
+           x = "Dribbling",
+           y = "Passing") 
+  })
+  
+  output$physic_defending <- renderPlot({
+    data2() %>%
+      filter(physic >50, defending > 50) %>%
+      ggplot(aes(physic,defending, color = overall))  + geom_point() + 
+      geom_text_repel(aes(label = name),nudge_y = 0.8) + scale_color_viridis(option = "viridis")+
+      labs(title = "Visualisation of physic and defending skills",
+           x = "Physic",
+           y = "Defending") 
+  })
+  
+  
+  player <- reactive({
+    fifa %>%
+      filter(club %in% input$club,
+             name %in% input$name)
+  })
+  
+  choices_for_club_player <- reactive({
+    fifa %>% 
+      filter(championship == input$championship) %>% 
+      arrange(club) %>%
+      pull(club)
+  }) 
+  
+  output$player1 <- renderUI(
+    selectizeInput("club", "Club", 
+                   choices = choices_for_club_player()
+    )
+  )
+  
+  
+  choices_for_name_list <- reactive({
+    fifa %>% 
+      filter(club == input$club) %>%
+      arrange(name) %>%
+      pull(name)
+  })
+  
+  output$player2 <- renderUI(
+    selectizeInput("name", "Name",  choices = choices_for_name_list()
+    )
+  )
+  
+  output$table_player <- DT::renderDataTable({player()})
+  
+  output$boxname <- renderValueBox({
+    fifa <- player()
+    valueBox(
+      value = fifa$name, 
+      subtitle = "Name",
+      icon = icon("signature", lib = "font-awesome"),
+      color = "green"
+    )
+  })
+  
+  output$boxage <- renderValueBox({
+    fifa <- player()
+    valueBox(
+      value = fifa$age, 
+      subtitle = "Age",
+      icon = icon("pagelines", lib = "font-awesome"),
+      color = "green"
+    )
+  })
+  
+  output$boxoverall <- renderValueBox({
+    fifa <- player()
+    valueBox(
+      value = fifa$overall, 
+      subtitle = "Overall",
+      icon = icon("staylinked", lib = "font-awesome"),
+      color = "green"
+    )
+  })
+  
+  output$boxpotential_increase <- renderValueBox({
+    fifa <- player()
+    valueBox(
+      value = fifa$potential_increase, 
+      subtitle = "Potential",
+      icon = icon("chart-line", lib = "font-awesome"),
+      color = "green"
+    )
+  })
+  
+  output$boxwage <- renderValueBox({
+    fifa <- player()
+    valueBox(
+      value = fifa$wage, 
+      subtitle = "Wage",
+      icon = icon("euro-sign", lib = "font-awesome"),
+      color = "green"
+    )
+  })
+  
+  output$boxposition <- renderValueBox({
+    fifa <- player()
+    valueBox(
+      value = fifa$position, 
+      subtitle = "Position",
+      icon = icon("map-marker-alt", lib = "font-awesome"),
+      color = "green"
+    )
+  })
+  
+  output$boxcontract <- renderValueBox({
+    fifa <- player()
+    valueBox(
+      value = fifa$remaining_contract_years, 
+      subtitle = "Contract duration",
+      icon = icon("file-contract", lib = "font-awesome"),
+      color = "green"
+    )
+  })
+  
+  output$boxheight <- renderValueBox({
+    fifa <- player()
+    valueBox(
+      value = fifa$height, 
+      subtitle = "Height",
+      icon = icon("arrows-alt-v", lib = "font-awesome"),
+      color = "green"
+    )
+  })
+  
+  output$boxvalue <- renderValueBox({
+    fifa <- player()
+    valueBox(
+      value = fifa$value, 
+      subtitle = "Value",
+      icon = icon("coins", lib = "font-awesome"),
+      color = "green"
+    )
+  })
+  
+  
+  output$radarchart <- renderPlot({
+    a <- player() 
+    rownames(a)<-a$name 
+    a<-a[c("passing","dribbling", "pace", "shooting", "defending", "physic")]
+    b<-rbind(c(100,100,100,100,100,100),c(0,0,0,0,0,0),a[1:7,]) 
+    b<-as.data.frame(sapply(b, as.numeric))
+    colors_border=c( rgb(0.2,0.5,0.5,0.9), rgb(0.8,0.2,0.5,0.9) , rgb(0.7,0.5,0.1,0.9) ) 
+    colors_in=c( rgb(0.2,0.5,0.5,0.4), rgb(0.8,0.2,0.5,0.4) , rgb(0.7,0.5,0.1,0.4) )
+    radarchart( b, axistype=1,pcol=colors_border , pfcol=colors_in , plwd=5, plty=1,
+                cglcol="grey", cglty=1, axislabcol="grey",  cglwd=0.8, vlcex=0.8, maxmin=TRUE 
+    )
+  })    
+  
+  
+  
+}
+
+shinyApp(ui = ui, server = server)
